@@ -50,6 +50,7 @@ class Options:
         # input
         self.parser.add_argument('--rot', action='store_true', default=False)
         self.parser.add_argument('--scale', type=float, default=0.0)
+        self.parser.add_argument('--scale_type', type=str, default='mul')
         self.parser.add_argument('--norm', action='store_true', default=False)
         self.parser.add_argument('--use_global', action='store_true', default=False)
         self.parser.add_argument('--joint', type=str, default='all') #15

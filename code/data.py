@@ -140,7 +140,12 @@ def train_map_fn(data_dict, opts):
     if opts.rot:
         volume, heatmap = random_rot(volume, heatmap)
     if opts.scale:
-        volume[:,:,:,0] = uniform(1 - opts.scale, 1 + opts.scale) * volume[:,:,:,0]
+        if opts.scale_type == 'mul':
+            volume[:,:,:,0] = uniform(1 - opts.scale, 1 + opts.scale) * volume[:,:,:,0]
+        elif opts.scale_type == 'exp':
+            volume[:,:,:,0] = volume[:,:,:,0] ** uniform(1 - opts.scale, 1 + opts.scale)
+        else:
+            raise Exception('scale type error')
     return volume, heatmap
     
     
