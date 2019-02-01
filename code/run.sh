@@ -1,7 +1,7 @@
-python main.py --name=b5s64bn_rot_scaleexp0.1_adamwr1_022618 \
+python main.py --name=b5s64bn_rot_adamwr1_022618 \
                --ngpu=1 \
                --rot \
-               --scale=0.1 \
+               --scale=0.0 \
 	       --scale_type=exp \
                --epochs=200 \
                --bone=[[11,5],[12,6],[5,13],[6,14],[9,2],[10,3],[2,0],[3,1]] \

@@ -50,7 +50,7 @@ class Dataset():
     def __init__(self, opts):
         self.data_test = opts.data_test
         rawdata_path = opts.rawdata_path
-        c_s_dict = {'043015raw': [20, 20, 20, 0, 0, 20]}
+        c_s_dict = {'043015raw': [20, 20, 20, 0, 0, 20], '043015': [0, 0, 0, 0, 0, 20]}
         dataset_dict = []
         for folder in [os.path.join(rawdata_path, f) for f in sorted(os.listdir(rawdata_path))]:
             folder_basename = os.path.basename(folder)
@@ -73,7 +73,9 @@ class Dataset():
             for d in self.dataset_dict:
                 filenames.extend(d['filenames'])
             return filenames
-        n_train_dict = {'040716': 150, '043015raw': 400, '031616': 90, '102617': 90, '031615': 90, '022618': 90}
+        #n_train_dict = {'040716': 150, '043015raw': 400, '031616': 90, '102617': 90, '031615': 90, '022618': 90}
+        #{old, new, old, old, old, old}
+        n_train_dict = {'040716': 150, '043015': 400, '031616': 90, '102617': 90, '031615': 90, '022618': 90}
         n_train_dict[self.data_test] = 0
         data_list = []
         for dataset in self.dataset_dict:
