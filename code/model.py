@@ -10,11 +10,11 @@ def bn(inputs, training, normlayer):
         return inputs
         
 
-def conv3d(inputs, nc_out, k=3, activation=None, k_init='glorot_uniform'):
+def conv3d(inputs, nc_out, k=3, s=1, activation=None, k_init='glorot_uniform', use_bias=True):
     k_init = tf.keras.initializers.get(k_init)
-    out = tf.layers.conv3d(inputs, filters=nc_out, kernel_size=[k,k,k],
+    out = tf.layers.conv3d(inputs, filters=nc_out, kernel_size=[k,k,k], strides=(s,s,s),
                            padding="same", activation=None, 
-                           kernel_initializer=k_init)
+                           kernel_initializer=k_init, use_bias=use_bias)
     return out
 
 '''hourglass'''
@@ -139,6 +139,63 @@ def pretrain_output(x, training, normlayer):
         y = tf.layers.dense(y, 26)
     return y
     
+''' simple baseline'''
+
+def basic_block(x, out_planes, s, training, k_init):
+    in_planes = x.get_shape().as_list()[-1]
+
+    out = conv3d(x, out_planes, 3, s=s, k_init=k_init, use_bias=False)
+    out = tf.layers.batch_normalization(inputs=out, training=training, fused=True)
+    out = tf.nn.relu(out)
+    
+    out = conv3d(out, out_planes, 3, k_init=k_init, use_bias=False)
+    out = tf.layers.batch_normalization(inputs=out, training=training, fused=True)
+    
+    if s != 1 or in_planes != out_planes:
+        residual = conv3d(x, out_planes, 1, s=s, k_init=k_init, use_bias=False)
+        residual = tf.layers.batch_normalization(inputs=residual, training=training, fused=True)
+    else:
+        residual = x    
+    out = tf.nn.relu(out + residual)
+    
+    return out
+
+def simple_res(x, opts, training):
+
+    #nDown = opts.nStacks
+    nDeconv = opts.depth
+    nFeat = opts.nFeat
+    nClasses = opts.nJoint + opts.nBone
+    k_init = opts.k_init
+
+    with tf.variable_scope('simple'):
+        with tf.variable_scope('head'):
+            x = conv3d(x, nFeat, 7, s=2, k_init=k_init, use_bias=False)
+            x = tf.layers.batch_normalization(inputs=x, training=training, fused=True)
+            x = tf.nn.relu(x)
+            #x = tf.layers.max_pooling3d(x, pool_size=3, strides=2, padding='same')
+        
+        layers = [2, 2, 2, 2]
+        strides = [1, 2, 2, 2]
+        planes = [nFeat, nFeat*2, nFeat*4, nFeat*8]
+        
+        with tf.variable_scope('mid'):
+            for l, s, p in zip(layers, strides, planes):
+                x = basic_block(x, p, s, training, k_init)
+                for i in range(1, l):
+                    x = basic_block(x, p, 1, training, k_init)
+        
+        with tf.variable_scope('deconv'):
+            for i in range(nDeconv):
+                x = tf.layers.conv3d_transpose(x, filters=nFeat*4, kernel_size=(4,4,4), strides=(2,2,2), padding='same', use_bias=False)
+                x = tf.layers.batch_normalization(inputs=x, training=training, fused=True)
+                x = tf.nn.relu(x)
+            
+        with tf.variable_scope('final'):
+            x = conv3d(x, nClasses, 1, k_init=k_init)
+    return [x]
+            
+
         
 def get_network(volume, opts):
 
@@ -149,6 +206,8 @@ def get_network(volume, opts):
 
     if opts.network == 'shg':
         outputs = stacked_hourglass(volume, opts, training)
+    elif opts.network == 'simple':
+        outputs = simple_res(volume, opts, training)
     else:
         raise Exception('network error')
     return outputs, training

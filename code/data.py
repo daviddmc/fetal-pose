@@ -160,7 +160,7 @@ def val_map_fn(data_dict, opts):
     if opts.norm:
         mean = np.mean(volume)
         std = np.std(volume)
-    volume, heatmap, heatmap_p = crop_trainval(volume, joint_coord, joint_coord_p, opts.crop_size, opts.mag, opts.sigma, opts.bone)
+    volume, heatmap, heatmap_p = crop_trainval(volume, joint_coord, joint_coord_p, opts.crop_size, opts.mag, opts.sigma, opts.bone, opts.fac)
     if opts.norm:
         volume = (volume - mean) / std
     if heatmap_p is not None:
@@ -179,7 +179,7 @@ def test_map_fn(data_dict, opts):
     return crop_test(volume), joint_coord.astype(np.int32), volume.shape, data_dict['foldername']
 
 
-def crop_trainval(volume, joint_coord, joint_coord_p, crop_size, mag, sigma, bone):
+def crop_trainval(volume, joint_coord, joint_coord_p, crop_size, mag, sigma, bone, fac):
     # size crop size
     crop_size_x, crop_size_y, crop_size_z = crop_size
     # generate random point
@@ -187,9 +187,9 @@ def crop_trainval(volume, joint_coord, joint_coord_p, crop_size, mag, sigma, bon
     x_0, y_0, z_0 = randint(0, s[1] - crop_size_x), randint(0, s[0] - crop_size_y), randint(0, s[2] - crop_size_z)
     volume = volume[y_0:y_0+crop_size_y, x_0:x_0+crop_size_x, z_0:z_0+crop_size_z]
     # generate heatmap
-    y_range = np.reshape(np.arange(y_0, y_0+crop_size_y, dtype=np.float32), (-1,1,1,1))
-    x_range = np.reshape(np.arange(x_0, x_0+crop_size_x, dtype=np.float32), (1,-1,1,1))
-    z_range = np.reshape(np.arange(z_0, z_0+crop_size_z, dtype=np.float32), (1,1,-1,1))
+    y_range = np.reshape(np.arange(y_0, y_0+crop_size_y, fac, dtype=np.float32), (-1,1,1,1))
+    x_range = np.reshape(np.arange(x_0, x_0+crop_size_x, fac, dtype=np.float32), (1,-1,1,1))
+    z_range = np.reshape(np.arange(z_0, z_0+crop_size_z, fac, dtype=np.float32), (1,1,-1,1))
     
     bone = np.array(bone)
     
@@ -245,7 +245,8 @@ def crop_trainval(volume, joint_coord, joint_coord_p, crop_size, mag, sigma, bon
     
                 
 def crop_test(volume):
-    pad_width = [(int((ceil(s/8.0)*8-s)/2), int(ceil((ceil(s/8.0)*8-s)/2))) for s in volume.shape]
+    #pad_width = [(int((ceil(s/8.0)*8-s)/2), int(ceil((ceil(s/8.0)*8-s)/2))) for s in volume.shape]
+    pad_width = [(int((ceil(s/16.0)*16-s)/2), int(ceil((ceil(s/16.0)*16-s)/2))) for s in volume.shape]
     v = np.pad(volume, pad_width,  'edge')
     v = np.expand_dims(v, -1)
     return v

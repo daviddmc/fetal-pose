@@ -83,7 +83,8 @@ class Options:
         else:
             self.opt.ngpu = len(self.opt.gpu_id.split(','))
         os.environ["CUDA_VISIBLE_DEVICES"] = str(self.opt.gpu_id)
-        
+        # heatmap zoom
+        self.opt.fac = 2 if self.opt.network == 'simple' else 1
         # crop size
         self.opt.crop_size = [int(s) for s in self.opt.crop_size.split(',')]
         # time

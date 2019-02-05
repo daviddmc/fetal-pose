@@ -1,6 +1,7 @@
 import numpy as np
 import os
 from math import ceil
+from scipy.ndimage import zoom
 
 name_dict = {}
 
@@ -17,8 +18,33 @@ def test_result(outputs, joint_coord, s, dn, opts):
     dn = np.squeeze(dn)
 
     predict_mean_coord = np.zeros_like(joint_coord)* 0.0
-
-    pad_width = [(int((ceil(ss/8.0)*8-ss)/2), int(ceil((ceil(ss/8.0)*8-ss)/2))) for ss in s]
+    """
+    if opts.fac > 1:
+        volume = outputs
+        pad_width = [(int((ceil(ss/16.0)*16-ss)/2), int(ceil((ceil(ss/16.0)*16-ss)/2))) for ss in s]
+        sss = outputs.shape
+        xv, yv, zv = np.meshgrid(np.arange(0,sss[1]), np.arange(0,sss[0]), np.arange(0,sss[2]))
+        xv = xv * opts.fac - pad_width[1][0]
+        yv = yv * opts.fac - pad_width[0][0]
+        zv = zv * opts.fac - pad_width[2][0]
+        
+        for i in range(joint_coord.shape[-1]):
+            if joint_coord[2, i] <= 0:
+                joint_coord[:, i] = np.nan
+                predict_mean_coord[:, i] = np.nan
+            else:
+                ind = np.unravel_index(np.argmax(volume[:,:,:,i]), s)
+                weights = np.exp( (-1.0/8.0)*((xv - (ind[1] * 2 - pad_width[1][0]))**2 + (yv - (ind[0]*2 - pad_width[0][0]))**2 + (zv - (ind[2]*2-pad_width[2][0]))**2) ) * volume[:,:,:,i]
+                predict_mean_coord[0, i] = np.average(xv, weights = weights)
+                predict_mean_coord[1, i] = np.average(yv, weights = weights)
+                predict_mean_coord[2, i] = np.average(zv, weights = weights)
+    """
+    
+    #print('dn')
+    if opts.fac > 1:
+        outputs = zoom(outputs, (opts.fac, opts.fac, opts.fac, 1), order=1)
+    #pad_width = [(int((ceil(ss/8.0)*8-ss)/2), int(ceil((ceil(ss/8.0)*8-ss)/2))) for ss in s]
+    pad_width = [(int((ceil(ss/16.0)*16-ss)/2), int(ceil((ceil(ss/16.0)*16-ss)/2))) for ss in s]
     sss = outputs.shape
     volume = outputs[pad_width[0][0]:sss[0]-pad_width[0][1], pad_width[1][0]:sss[1]-pad_width[1][1], pad_width[2][0]:sss[2]-pad_width[2][1]]
     '''save volume'''
