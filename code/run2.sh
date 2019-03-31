@@ -1,4 +1,4 @@
-python main.py --name=b5s64bn_rot_scale0.1_adamwr1_newtest_flip_unet_all \
+python main2.py --name=b5s64bn_rot_scale0.1_adamwr1_newtest_flip_unet_all \
                --ngpu=1 \
                --scale=0.1 \
                --epochs=200 \
@@ -14,9 +14,9 @@ python main.py --name=b5s64bn_rot_scale0.1_adamwr1_newtest_flip_unet_all \
                --dataset="[('040716', 300, 1), ('043015', 400, 1), ('031616', 100, 1), ('031615', 100, 1), ('022618', 100, 1), ('102617', 100, 1), ('111', 64, 5), ('040218', 70, 1), ('032318a', 70, 1), ('061217', 20, 1)]"\
                --rot \
                --flip \
-               --nFeat=64\
-               --network=unet\
-               #--run=test \
+               --run=test \
+               --network=unet \
+               --nFeat=64 \
                #--train_like_test=0.25 \
                #--temporal \
                # 6.5 13.4

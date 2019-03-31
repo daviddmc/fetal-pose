@@ -5,3 +5,9 @@ results/
 code/run.sh
 
 code/__pycache__
+
+newdata/
+
+predict/
+
+

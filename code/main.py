@@ -3,7 +3,7 @@ from data import Dataset
 from visualize import image_summary
 from model import get_network
 from losses import mse_loss
-from test import test_result, save_test_result,  first_heatmap_p, get_heatmap_p
+from test import test_result, save_test_result,  first_heatmap_p, get_heatmap_p, reset_dict
 import tensorflow as tf
 import os
 import time
@@ -11,6 +11,11 @@ from pretrain import pretrain
 from optimizer import Optimizer
 import numpy as np
 import random
+import numpy as np
+
+
+np.random.seed(123)
+random.seed(123)
 
 # options
 opts = Options().parse()
@@ -18,10 +23,9 @@ opts = Options().parse()
 if opts.run == 'pretrain':
     pretrain(opts)
     os._exit(0)
+    
 
-dataset = Dataset(opts)
-
-if opts.run == 'train':
+def train_fun(dataset, opts):
     # dataset and iterator
     dataset_train, dataset_val = dataset.get_dataset(opts)
     iterator = tf.data.Iterator.from_structure(dataset_train.output_types, dataset_train.output_shapes)
@@ -114,43 +118,64 @@ if opts.run == 'train':
         print('training loop end')
         writer_train.close()
         writer_val.close()
-    tf.reset_default_graph()
     opts.run = 'test'
-               
-# dataset and iterator
-dataset_val = dataset.get_dataset(opts)
-iterator = dataset_val.make_one_shot_iterator()
-volume, joint_coord, shape, data_num = iterator.get_next()
-inputs = tf.placeholder(tf.float32, shape=[None, None, None, None, 1 + opts.temporal * opts.nJoint])
-dn_p = 0
-
-# network
-outputs, _ = get_network(inputs, opts)
     
-# save and load
-saver = tf.train.Saver(var_list=tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=opts.network))
+    
+def test_fun(dataset, opts):
+    test_arg_list = []
+    for test_rot in [None]:
+        for test_flip in [None]:
+            test_arg_list.append((test_rot, test_flip))
+    for test_arg in test_arg_list:
+    #for test_arg in [(None, None)]:
+        opts.test_arg = test_arg
+        # dataset and iterator
+        dataset_val = dataset.get_dataset(opts)
+        iterator = dataset_val.make_one_shot_iterator()
+        volume, joint_coord, shape, data_num = iterator.get_next()
+        inputs = tf.placeholder(tf.float32, shape=[None, None, None, None, 1 + opts.temporal * opts.nJoint])
+        dn_p = 0
         
-start = time.time()
-with tf.Session() as sess:
-    sess.run(tf.global_variables_initializer())
-    print('restore trained model')
-    saver.restore(sess, os.path.join(opts.output_path, opts.name, 'model%d.ckpt'%opts.epochs))
-    print('test start')
-    res = []
-    while True:
-        try:
-            v, joint, s, dn = sess.run([volume, joint_coord, shape, data_num])
-            if opts.temporal:
-                if np.squeeze(dn) != dn_p:
-                    output_val = first_heatmap_p(joint, s, opts)
-                    dn_p = np.squeeze(dn)
-                else:
-                    output_val = get_heatmap_p(output_val, opts)
-                output_val = sess.run(outputs[-1], feed_dict={inputs: np.concatenate([v, output_val], axis=-1)})
-            else:
-                output_val = sess.run(outputs[-1], feed_dict={inputs: v})
-            res.append(test_result(output_val, joint, s, dn, opts))
-        except tf.errors.OutOfRangeError:
-            break
-    save_test_result(res, opts)
-print("test end, elapsed time: ", time.time() - start)
+        # network
+        outputs, _ = get_network(inputs, opts)
+            
+        # save and load
+        saver = tf.train.Saver(var_list=tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=opts.network))
+                
+        start = time.time()
+        with tf.Session() as sess:
+            sess.run(tf.global_variables_initializer())
+            print('restore trained model')
+            saver.restore(sess, os.path.join(opts.output_path, opts.name, 'model%d.ckpt'%opts.epochs))
+            print('test start')
+            res = []
+            while True:
+                try:
+                    v, joint, s, dn = sess.run([volume, joint_coord, shape, data_num])
+                    if opts.temporal:
+                        if np.squeeze(dn) != dn_p:
+                            output_val = first_heatmap_p(joint, s, opts)
+                            dn_p = np.squeeze(dn)
+                        else:
+                            output_val = get_heatmap_p(output_val, opts)
+                        output_val = sess.run(outputs[-1], feed_dict={inputs: np.concatenate([v, output_val], axis=-1)})
+                    else:
+                        output_val = sess.run(outputs[-1], feed_dict={inputs: v})
+                    res.append(test_result(output_val, joint, s, dn, opts))
+                except tf.errors.OutOfRangeError:
+                    break
+            save_test_result(res, opts)
+            reset_dict()
+        tf.reset_default_graph()
+        print("test end, elapsed time: ", time.time() - start)
+    
+
+if __name__ == '__main__':
+    dataset = Dataset(opts)
+    tf.reset_default_graph()
+    with tf.Graph().as_default():
+        tf.set_random_seed(123)
+        if opts.run == 'train':
+            train_fun(dataset, opts)
+    tf.reset_default_graph()
+    test_fun(dataset, opts)

@@ -26,9 +26,8 @@ class Options:
         
         # run
         self.parser.add_argument('--run', type=check_arg(str, ['train', 'test', 'pretrain']), default='train')
-        
-        self.parser.add_argument('--data_test', type=str, default='031616')
-        
+        self.parser.add_argument('--dataset', type=str, default="[('040716', 150, 1), ('043015', 400, 1), ('031616', 90, 1), ('031615', 90, 1), ('022618', 0, 1), ('102617', 90, 1), ('111', 44, 5)]")
+
         # train
         self.parser.add_argument('--use_pretrain', type=str, default='')
         self.parser.add_argument('--continue', type=str, default='')
@@ -49,6 +48,7 @@ class Options:
                 
         # input
         self.parser.add_argument('--rot', action='store_true', default=False)
+        self.parser.add_argument('--flip', action='store_true', default=False)
         self.parser.add_argument('--scale', type=float, default=0.0)
         self.parser.add_argument('--scale_type', type=str, default='mul')
         self.parser.add_argument('--norm', action='store_true', default=False)
@@ -107,12 +107,12 @@ class Options:
         if self.opt.run == 'pretrain':
             self.opt.name += '_pretrain'
         # random seed
-        set_random_seed(['py','np','tf'], self.opt.random_seed)
+        #set_random_seed(['py','np','tf'], self.opt.random_seed)
 
         expr_dir = os.path.join(self.opt.output_path, self.opt.name)
         if self.opt.run == 'test':
             # load from disk
-            self.opt = load_yaml(os.path.join(expr_dir, 'opt.yaml'), self.opt, key_to_drop=['run'])
+            self.opt = load_yaml(os.path.join(expr_dir, 'opt.yaml'), self.opt, key_to_drop=['run', 'dataset'])
         else:
             # save to disk
             mkdir(expr_dir)

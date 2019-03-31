@@ -17,6 +17,14 @@ def conv3d(inputs, nc_out, k=3, s=1, activation=None, k_init='glorot_uniform', u
                            kernel_initializer=k_init, use_bias=use_bias)
     return out
 
+
+def deconv3d(inputs, nc_out, k=3, s=1, k_init='glorot_uniform'):
+    k_init = tf.keras.initializers.get(k_init)
+    out = tf.layers.conv3d_transpose(inputs, filters=nc_out, kernel_size=[k,k,k], strides=(s,s,s), padding='same',
+                                      kernel_initializer=k_init, use_bias=False)
+    return out
+
+
 '''hourglass'''
 
 def resblock(inputs, nc_out, training, normlayer, k_init):
@@ -35,94 +43,102 @@ def resblock(inputs, nc_out, training, normlayer, k_init):
         out += residual
     return out
     
-def hourglass(inputs, depth, nFeat, training, normlayer, k_init, gpu_id, pretrain):
-    with tf.device('/gpu:%d'%gpu_id[0]):
-        encoders = [inputs]
-        for ii in range(depth):
-            low = tf.layers.max_pooling3d(encoders[-1], pool_size=2, strides=2)
-            low = resblock(low, nFeat, training, normlayer, k_init)
-            encoders.append(low)
+class hourglass:
+
+    def __init__(self, inputs, depth, nFeat, training, normlayer, k_init, gpu_id, pretrain):
+    
+        self.inputs = inputs
+        with tf.device('/gpu:%d'%gpu_id[0]):
+            encoders = [inputs]
+            for ii in range(depth):
+                low = tf.layers.max_pooling3d(encoders[-1], pool_size=2, strides=2)
+                low = resblock(low, nFeat, training, normlayer, k_init)
+                encoders.append(low)
+            
+            decoders = [resblock(encoders[-1], nFeat, training, normlayer, k_init)]
         
-        decoders = [resblock(encoders[-1], nFeat, training, normlayer, k_init)]
-    
-    if pretrain:
-        return decoders[-1]
-    
-    skips = []
-    for i, encoder in enumerate(encoders[0:-1]):
-        with tf.device('/gpu:%d'%gpu_id[1]) if i==0 else tf.device('/gpu:%d'%gpu_id[0]):
-            skips.append(resblock(encoder, nFeat, training, normlayer, k_init))
-    
-    with tf.device('/gpu:%d'%gpu_id[1]):
-        for skip in skips[-1::-1]:
-            low = resblock(decoders[-1], nFeat, training, normlayer, k_init)
-            up = tf.keras.layers.UpSampling3D()(low)
-            decoders.append(up + skip)
+        if pretrain:
+            return decoders[-1]
         
-    return decoders[-1]
+        skips = []
+        for i, encoder in enumerate(encoders[0:-1]):
+            with tf.device('/gpu:%d'%gpu_id[1]) if i==0 else tf.device('/gpu:%d'%gpu_id[0]):
+                skips.append(resblock(encoder, nFeat, training, normlayer, k_init))
+        
+        with tf.device('/gpu:%d'%gpu_id[1]):
+            for skip in skips[-1::-1]:
+                low = resblock(decoders[-1], nFeat, training, normlayer, k_init)
+                up = tf.keras.layers.UpSampling3D()(low)
+                decoders.append(up + skip)
+            
+        self.outputs = decoders[-1]
 
+class stacked_hourglass:
 
-def stacked_hourglass(x, opts, training):
-    inputs = x
-    nStacks = opts.nStacks
-    depth = opts.depth
-    nFeat = opts.nFeat
-    nClasses = opts.nJoint + opts.nBone
-    normlayer = opts.normlayer
-    is_pretrain = opts.run == 'pretrain'
-    k_init = opts.k_init
-
-    if nStacks == opts.ngpu:
-        gpu_ids = list(zip(range(nStacks), range(nStacks)))
-    elif 2 * nStacks == opts.ngpu:
-        gpu_ids = list(zip(range(0, 2*nStacks, 2), range(1, 2*nStacks, 2)))
-    elif opts.ngpu == 1:
-        gpu_ids = [(0, 0)] * nStacks
-    else:
-        raise Exception('n GPU Error')
-
-    with tf.variable_scope('shg'):
-        # head
-        with tf.variable_scope('head'):
-            with tf.device('/gpu:%d'%gpu_ids[0][0]):
-                x = conv3d(x, nFeat//2, 5, k_init=k_init)
-                x = bn(x, training, normlayer)
-                x = tf.nn.relu(x)
-                x = resblock(x, nFeat//2, training, normlayer, k_init)
-                x = resblock(x, nFeat, training, normlayer, k_init)
-        out = []
-        for i in range(nStacks):
-            # hg
-            with tf.variable_scope('hg%d'%i):
-                y = hourglass(x, depth, nFeat, training, normlayer, k_init, gpu_ids[i], is_pretrain)
-                if is_pretrain:
-                    break
-                
-            with tf.device('/gpu:%d'%gpu_ids[i][1]):
-                # res
-                y = resblock(y, nFeat, training, normlayer, k_init)
-                # fc
-                y = conv3d(y, nFeat, 1, k_init=k_init)
-                y = bn(y, training, normlayer)
-                if not (opts.res2 and opts.temporal):
-                    y = tf.nn.relu(y)
-                # score
-                score = conv3d(y, nClasses, 1, k_init=k_init)
-                if opts.res2 and opts.temporal:
-                    score = score + inputs[:,:,:,:,1:]
-                out.append(score)
-
-            if i < (nStacks - 1):
-                with tf.device('/gpu:%d'%gpu_ids[i+1][0]):
-                    fc_ = conv3d(y, nFeat, 1, k_init=k_init)
-                    if opts.res and opts.temporal:
-                        score_ = conv3d(score + inputs[:,:,:,:,1:], nFeat, 1, k_init=k_init)
-                    else:
-                        score_ = conv3d(score, nFeat, 1, k_init=k_init)
-                    x = x + fc_ + score_
-    if is_pretrain:
-        out = pretrain_output(y, training, normlayer)
-    return out
+    def __init__(self, x, opts, training):
+        self.inputs = x
+        self.hg = []
+        inputs = x
+        nStacks = opts.nStacks
+        depth = opts.depth
+        nFeat = opts.nFeat
+        nClasses = opts.nJoint + opts.nBone
+        normlayer = opts.normlayer
+        is_pretrain = opts.run == 'pretrain'
+        k_init = opts.k_init
+    
+        if nStacks == opts.ngpu:
+            gpu_ids = list(zip(range(nStacks), range(nStacks)))
+        elif 2 * nStacks == opts.ngpu:
+            gpu_ids = list(zip(range(0, 2*nStacks, 2), range(1, 2*nStacks, 2)))
+        elif opts.ngpu == 1:
+            gpu_ids = [(0, 0)] * nStacks
+        else:
+            raise Exception('n GPU Error')
+    
+        with tf.variable_scope('shg'):
+            # head
+            with tf.variable_scope('head'):
+                with tf.device('/gpu:%d'%gpu_ids[0][0]):
+                    x = conv3d(x, nFeat//2, 5, k_init=k_init)
+                    x = bn(x, training, normlayer)
+                    x = tf.nn.relu(x)
+                    x = resblock(x, nFeat//2, training, normlayer, k_init)
+                    x = resblock(x, nFeat, training, normlayer, k_init)
+            out = []
+            for i in range(nStacks):
+                # hg
+                with tf.variable_scope('hg%d'%i):
+                    self.hg.append(hourglass(x, depth, nFeat, training, normlayer, k_init, gpu_ids[i], is_pretrain))
+                    y = self.hg[-1].outputs
+                    if is_pretrain:
+                        break
+                    
+                with tf.device('/gpu:%d'%gpu_ids[i][1]):
+                    # res
+                    y = resblock(y, nFeat, training, normlayer, k_init)
+                    # fc
+                    y = conv3d(y, nFeat, 1, k_init=k_init)
+                    y = bn(y, training, normlayer)
+                    if not (opts.res2 and opts.temporal):
+                        y = tf.nn.relu(y)
+                    # score
+                    score = conv3d(y, nClasses, 1, k_init=k_init)
+                    if opts.res2 and opts.temporal:
+                        score = score + inputs[:,:,:,:,1:]
+                    out.append(score)
+    
+                if i < (nStacks - 1):
+                    with tf.device('/gpu:%d'%gpu_ids[i+1][0]):
+                        fc_ = conv3d(y, nFeat, 1, k_init=k_init)
+                        if opts.res and opts.temporal:
+                            score_ = conv3d(score + inputs[:,:,:,:,1:], nFeat, 1, k_init=k_init)
+                        else:
+                            score_ = conv3d(score, nFeat, 1, k_init=k_init)
+                        x = x + fc_ + score_
+        if is_pretrain:
+            out = pretrain_output(y, training, normlayer)
+        self.outputs = out
 
 def pretrain_output(x, training, normlayer):
     with tf.variable_scope('pretrain_out'):
@@ -138,6 +154,59 @@ def pretrain_output(x, training, normlayer):
         y = tf.layers.dense(x_ab, 1024, activation=tf.nn.relu)
         y = tf.layers.dense(y, 26)
     return y
+    
+    
+''' UNet '''
+
+class unet:
+    def __init__(self, x, opts, training):
+        
+        nFeat = opts.nFeat
+        nfeat = [opts.nFeat, 2*opts.nFeat, 4*opts.nFeat, 8*opts.nFeat]
+        
+        nClasses = opts.nJoint + opts.nBone
+        
+        with tf.variable_scope('unet'):
+        
+            down1_feat = self.conv3x3(x, nfeat[0],training)
+            
+            down2_feat = tf.layers.max_pooling3d(down1_feat, pool_size=2, strides=2)
+            down2_feat = self.conv3x3(down2_feat, nfeat[1],training)
+            
+            down3_feat = tf.layers.max_pooling3d(down2_feat, pool_size=2, strides=2)
+            down3_feat = self.conv3x3(down3_feat, nfeat[2],training)
+            
+            bottom_feat = tf.layers.max_pooling3d(down3_feat, pool_size=2, strides=2)
+            bottom_feat = self.conv3x3(bottom_feat, nfeat[3],training)
+            
+            up1_feat = self.upconcat(bottom_feat, down3_feat, nfeat[2])
+            up1_feat = self.conv3x3(up1_feat, nfeat[2],training)
+            
+            up2_feat = self.upconcat(up1_feat, down2_feat, nfeat[1])
+            up2_feat = self.conv3x3(up2_feat, nfeat[1],training)
+            
+            up3_feat = self.upconcat(up2_feat, down1_feat, nfeat[0])
+            up3_feat = self.conv3x3(up3_feat, nfeat[0],training)
+            
+            self.outputs = [conv3d(up3_feat, nClasses, 1)]
+
+    def conv3x3(self, x, nfeat, training):
+        x = conv3d(x, nfeat, 3)
+        x = bn(x, training, 'bn')
+        x = tf.nn.relu(x)
+        x = conv3d(x, nfeat, 3)
+        x = bn(x, training, 'bn')
+        x = tf.nn.relu(x)
+        return x
+        
+    def upconcat(self, x, y, nfeat):
+        x = deconv3d(x, nfeat, k=2, s=2)
+        x = tf.concat((y, x), -1)
+        return x
+    
+            
+        
+        
     
 ''' simple baseline'''
 
@@ -195,19 +264,24 @@ def simple_res(x, opts, training):
             x = conv3d(x, nClasses, 1, k_init=k_init)
     return [x]
             
-
-        
-def get_network(volume, opts):
-
+def get_model(volume, opts):
+    
     if opts.run == 'test':
         training = False
     else:
         training = tf.placeholder(tf.bool, shape=())
 
     if opts.network == 'shg':
-        outputs = stacked_hourglass(volume, opts, training)
+        model = stacked_hourglass(volume, opts, training)
+    elif opts.network == 'unet':
+        model = unet(volume, opts, training)
     elif opts.network == 'simple':
-        outputs = simple_res(volume, opts, training)
+        pass
+        #model = simple_res(volume, opts, training)
     else:
         raise Exception('network error')
-    return outputs, training
+    return model, training
+        
+def get_network(volume, opts):
+    model, training = get_model(volume, opts)
+    return model.outputs, training

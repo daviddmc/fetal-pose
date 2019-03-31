@@ -15,6 +15,7 @@ rots = [[], [(1, (0,1))], [(1, (1,2))], [(1, (2,0))], [(2, (0,1))], [(1, (0,1)),
         [(2, (1,2)), (1, (2,0))], [(1, (0,1)), (2, (1,2))], [(1, (0,1)), (2, (2,0))],
         [(1, (1,2)), (2, (0,1))], [(3, (1,2))], [(3, (2,0))], [(3, (0,1)), (1, (1,2))],
         [(2, (0,1)), (1, (1,2)), (1, (0,1))], [(3, (1,2)), (1, (2,0))], [(1, (0,1)), (3, (1,2))]]
+
         
 def random_rot(*arg):
     rot = choice(rots)
@@ -27,6 +28,27 @@ def random_rot(*arg):
         return res[0]
     else:
         return res
+        
+
+def random_flip(*arg):
+    flip = choice([None, 0, 1, 2])
+    res = []
+    flip_order1 = [1, 0, 3, 2, 4, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13]
+    flip_order2 = [1, 0, 3, 2, 4, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13] + [16, 15, 18, 17, 20, 19, 22, 21]
+    for i, a in enumerate(arg):
+        if flip is not None:
+            a = np.flip(a, flip)
+            if i > 0:
+                if a.shape[-1] > 15:
+                    a = a[:, :, :, flip_order2]
+                else:
+                    a = a[:, :, :, flip_order1]
+        res.append(a)
+    if len(res) == 1:
+        return res[0]
+    else:
+        return res
+
 
 def crop_shift(volume, joint_coord, joint_coord_p, c_s):
     crop_0 = c_s[0] if c_s[0] is list else [c_s[0], c_s[0]]
@@ -48,7 +70,7 @@ def read_nifti(nii_filename):
 class Dataset():
 
     def __init__(self, opts):
-        self.data_test = opts.data_test
+        self.dataset = eval(opts.dataset)
         rawdata_path = opts.rawdata_path
         c_s_dict = {'043015raw': [20, 20, 20, 0, 0, 20], '043015': [0, 0, 0, 0, 0, 20]}
         dataset_dict = []
@@ -73,17 +95,20 @@ class Dataset():
             for d in self.dataset_dict:
                 filenames.extend(d['filenames'])
             return filenames
-        #n_train_dict = {'040716': 150, '043015raw': 400, '031616': 90, '102617': 90, '031615': 90, '022618': 90}
-        #{old, new, old, old, old, old}
-        n_train_dict = {'040716': 150, '043015': 400, '031616': 90, '102617': 90, '031615': 90, '022618': 90}
-        n_train_dict[self.data_test] = 0
+        n_train_dict = {}
+        mul_train_dict = {}
+        for d in self.dataset:
+            n_train_dict[d[0]] = d[1]
+            mul_train_dict[d[0]] = d[2]
+        #n_train_dict = {'040716': 150, '043015': 400, '031616': 90, '102617': 90, '031615': 90, '022618': 90, '111': 44}
+        #n_train_dict[self.data_test] = 0
         data_list = []
         for dataset in self.dataset_dict:
             n_labeled = dataset['labels'].shape[0]
-            n_train = n_train_dict.get(dataset['foldername'],  2*(n_labeled//3))
+            n_train = n_train_dict[dataset['foldername']]
             if stage == 'train':
-                iterator = range(n_train)
-                #iterator = list(range(n_train)) * (int(np.ceil(120.0 / n_train)) if n_train else 0)
+                mul = mul_train_dict[dataset['foldername']]
+                iterator = list(range(n_train)) * mul if mul > 1 else range(n_train)
             else:
                 iterator = range(n_train, n_labeled)
             for i in iterator:
@@ -141,6 +166,8 @@ def train_map_fn(data_dict, opts):
     volume, heatmap = val_map_fn(data_dict, opts)
     if opts.rot:
         volume, heatmap = random_rot(volume, heatmap)
+    if opts.flip:
+        volume, heatmap = random_flip(volume, heatmap)
     if opts.scale:
         if opts.scale_type == 'mul':
             volume[:,:,:,0] = uniform(1 - opts.scale, 1 + opts.scale) * volume[:,:,:,0]
@@ -176,7 +203,7 @@ def test_map_fn(data_dict, opts):
         volume, joint_coord, _ = crop_shift(volume, joint_coord, None, data_dict['crop_and_shift'])
     if opts.norm:
         volume = (volume - np.mean(volume)) / np.std(volume)
-    return crop_test(volume), joint_coord.astype(np.int32), volume.shape, data_dict['foldername']
+    return crop_test(volume, opts.test_arg), joint_coord.astype(np.int32), volume.shape, data_dict['foldername']
 
 
 def crop_trainval(volume, joint_coord, joint_coord_p, crop_size, mag, sigma, bone, fac):
@@ -184,12 +211,19 @@ def crop_trainval(volume, joint_coord, joint_coord_p, crop_size, mag, sigma, bon
     crop_size_x, crop_size_y, crop_size_z = crop_size
     # generate random point
     s = volume.shape
-    x_0, y_0, z_0 = randint(0, s[1] - crop_size_x), randint(0, s[0] - crop_size_y), randint(0, s[2] - crop_size_z)
-    volume = volume[y_0:y_0+crop_size_y, x_0:x_0+crop_size_x, z_0:z_0+crop_size_z]
+    
+    if s[2] >= crop_size_z:
+        x_0, y_0, z_0 = randint(0, s[1] - crop_size_x), randint(0, s[0] - crop_size_y), randint(0, s[2] - crop_size_z) # close interval
+        volume = volume[y_0:y_0+crop_size_y, x_0:x_0+crop_size_x, z_0:z_0+crop_size_z]
+    else:
+        x_0, y_0, z_0 = randint(0, s[1] - crop_size_x), randint(0, s[0] - crop_size_y), 0
+        volume = volume[y_0:y_0+crop_size_y, x_0:x_0+crop_size_x, :]
+        volume = np.concatenate((volume, np.zeros((crop_size_y, crop_size_x, crop_size_z-s[2]), volume.dtype)), axis=2)
+    #print(volume.shape)
     # generate heatmap
-    y_range = np.reshape(np.arange(y_0, y_0+crop_size_y, fac, dtype=np.float32), (-1,1,1,1))
-    x_range = np.reshape(np.arange(x_0, x_0+crop_size_x, fac, dtype=np.float32), (1,-1,1,1))
-    z_range = np.reshape(np.arange(z_0, z_0+crop_size_z, fac, dtype=np.float32), (1,1,-1,1))
+    y_range = np.reshape(np.arange(y_0+1, y_0+crop_size_y+1, fac, dtype=np.float32), (-1,1,1,1))
+    x_range = np.reshape(np.arange(x_0+1, x_0+crop_size_x+1, fac, dtype=np.float32), (1,-1,1,1))
+    z_range = np.reshape(np.arange(z_0+1, z_0+crop_size_z+1, fac, dtype=np.float32), (1,1,-1,1))
     
     bone = np.array(bone)
     
@@ -205,35 +239,12 @@ def crop_trainval(volume, joint_coord, joint_coord_p, crop_size, mag, sigma, bon
             vv = vx**2 + vy**2 + vz**2
             wv = dx[:, :, :, bone[:, 0]] * vx + dy[:, :, :, bone[:, 0]] * vy + dz[:, :, :, bone[:, 0]] * vz
             is_outside = np.logical_or(wv <= 0, wv >= vv)
-            d_pb = dd[:,:,:,bone[:,0]] - wv**2 / (vv + 1e-8)
-            '''
-            if np.amin(d_pb) < 0:
-                print('start')
-                i, j, k, c = np.unravel_index(np.argmin(d_pb), d_pb.shape)
-                y, x, z = y_range[i, 0, 0, 0], x_range[0, j, 0, 0], z_range[0, 0, j, 0]
-                print(x, y, z)
-                b0x, b0y, b0z = x_label[0, 0, 0, bone[c, 0]], y_label[0, 0, 0, bone[c, 0]], z_label[0, 0, 0, bone[c, 0]]
-                print(b0x, b0y, b0z)
-                b1x, b1y, b1z = x_label[0, 0, 0, bone[c, 1]], y_label[0, 0, 0, bone[c, 1]], z_label[0, 0, 0, bone[c, 1]]
-                print(b1x, b1y, b1z)
-                Vx, Vy, Vz = b1x - b0x, b1y-b0y, b1z-b0z
-                VV = Vx**2 + Vy**2 + Vz**2
-                Wx, Wy, Wz = x - b0x, y - b0y, z-b0z
-                WV = Wx * Vx + Wy * Vy + Wz * Vz
-                WW = Wx**2 + Wy**2 + Wz**2
-                print(np.amin(d_pb), WW - WV**2 / VV, VV, vv[0, 0, 0, c])
-            '''
-            
+            d_pb = dd[:,:,:,bone[:,0]] - wv**2 / (vv + 1e-8)            
             d_out = np.minimum(dd[:,:,:,bone[:,1]], dd[:,:,:,bone[:,0]])
             d_pb[is_outside] = d_out[is_outside]
-            
-            
-            
             return np.concatenate((mag*np.exp((-1.0/2.0/sigma**2)*dd, dtype=np.float32), mag*np.exp((-1.0/2.0/sigma**2)*d_pb, dtype=np.float32)), axis=-1)
         else:
             return mag*np.exp((-1.0/2.0/sigma**2)*dd, dtype=np.float32)
-    #x_label, y_label, z_label = np.reshape(joint_coord, (3,1,1,1,-1))
-    #heatmap = mag*np.exp((-1.0/2.0/sigma**2)*((x_range - x_label)**2 + (y_range - y_label)**2 + (z_range - z_label)**2), dtype=np.float32)
     heatmap = gen_hmap(joint_coord)
     if joint_coord_p is not None:
         heatmap_p = gen_hmap(joint_coord_p)
@@ -244,10 +255,14 @@ def crop_trainval(volume, joint_coord, joint_coord_p, crop_size, mag, sigma, bon
     return np.expand_dims(volume, -1), heatmap, heatmap_p
     
                 
-def crop_test(volume):
-    #pad_width = [(int((ceil(s/8.0)*8-s)/2), int(ceil((ceil(s/8.0)*8-s)/2))) for s in volume.shape]
-    pad_width = [(int((ceil(s/16.0)*16-s)/2), int(ceil((ceil(s/16.0)*16-s)/2))) for s in volume.shape]
-    v = np.pad(volume, pad_width,  'edge')
+def crop_test(volume, test_arg):
+    pad_width = [(int((ceil(s/8.0)*8-s)/2), int(ceil((ceil(s/8.0)*8-s)/2))) for s in volume.shape]
+    #pad_width = [(int((ceil(s/16.0)*16-s)/2), int(ceil((ceil(s/16.0)*16-s)/2))) for s in volume.shape]
+    v = np.pad(volume, pad_width,  'reflect') #'constant', 'edge'
+    if test_arg[0] is not None:
+        v = np.rot90(v, 1, test_arg[0])
+    if test_arg[1] is not None:
+        v = np.flip(v, test_arg[1])
     v = np.expand_dims(v, -1)
     return v
         
