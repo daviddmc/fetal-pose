@@ -1,6 +1,14 @@
 .vscode/
 Chiari_2022_10_31/
 code/run.sh
+code/ChiariCases_EPIs/
+code/EPI_20timePts_clinical_20181022/
+code/epi_s4_k2/
+code/esra_data/
+code/FetalEPIs_BCH/
+code/T2sClinical_EPIs/
+code/test_*.py
+code/joint_coord.mat
 code_old/
 code_torch/
 esra_data/
