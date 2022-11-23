@@ -23,7 +23,6 @@ class Options:
         self.parser.add_argument(
             "--record_path", default="../record.mat", type=str, help="record path"
         )
-
         self.parser.add_argument(
             "--output_path", default="../results/", type=str, help="output path"
         )
@@ -37,7 +36,10 @@ class Options:
 
         # run
         self.parser.add_argument(
-            "--run", type=check_arg(str, ["train", "test", "pretrain"]), default="train"
+            "--run",
+            type=check_arg(str, ["train", "test"]),
+            default="train",
+            help="train or test",
         )
         self.parser.add_argument("--use_MRF", action="store_true", default=False)
 
@@ -46,14 +48,14 @@ class Options:
         self.parser.add_argument("--epoch_continue", type=int, default=0)
         self.parser.add_argument(
             "--batch_size", type=int, default=5, help="input batch size"
-        )  # pretrin 32 # train 5
+        )
         self.parser.add_argument(
             "--epochs", type=int, default=200, help="number of epochs to train for"
-        )  # 30
+        )
         self.parser.add_argument("--save_freq", type=int, default=50)
         self.parser.add_argument(
             "--lr", type=float, default=0.001, help="learning rate"
-        )  # adam: 0.0001,  pretrain: 0.001
+        )
         self.parser.add_argument("--lr_decay_ep", type=float, default=100)
         self.parser.add_argument("--lr_decay_gamma", type=float, default=0.1)
         self.parser.add_argument("--lr_decay_method", type=str, default="exp")
@@ -70,15 +72,41 @@ class Options:
         self.parser.add_argument("--gan_coef", type=float, default=0.0)
         self.parser.add_argument("--gan_coefdt", type=float, default=0.0)
         self.parser.add_argument("--gan_coefdf", type=float, default=0.0)
-        self.parser.add_argument("--train_all", action="store_true", default=False)
+        self.parser.add_argument(
+            "--train_all",
+            action="store_true",
+            default=False,
+            help="use all data to train the model",
+        )
 
         # input
-        self.parser.add_argument("--rot", action="store_true", default=False)
-        self.parser.add_argument("--flip", action="store_true", default=False)
-        self.parser.add_argument("--scale", type=float, default=0.0)
-        self.parser.add_argument("--zoom", type=float, default=2.0)
-        self.parser.add_argument("--zoom_factor", type=float, default=0.6)
-        self.parser.add_argument("--norm", action="store_true", default=False)
+        self.parser.add_argument(
+            "--rot", action="store_true", default=False, help="rotation augmentation"
+        )
+        self.parser.add_argument(
+            "--flip", action="store_true", default=False, help="flipping augmentation"
+        )
+        self.parser.add_argument(
+            "--scale",
+            type=float,
+            default=0.0,
+            help="gamma augmentation, would be ignored if --norm is false",
+        )
+        self.parser.add_argument(
+            "--zoom", type=float, default=2.0, help="probability of zoom augmentation"
+        )
+        self.parser.add_argument(
+            "--zoom_factor",
+            type=float,
+            default=0.6,
+            help="if zoom > 1 the zoom_factor is fixed, otherwise it would be randomly sampled from U[1/zoom_factor, zoom_factor]",
+        )
+        self.parser.add_argument(
+            "--norm",
+            action="store_true",
+            default=False,
+            help="normalization with 99th percentile",
+        )
         self.parser.add_argument("--joint", type=str, default="all")  # 15
         self.parser.add_argument("--crop_size", type=str, default="64,64,64")
         self.parser.add_argument("--downsample", action="store_true", default=False)
@@ -94,7 +122,7 @@ class Options:
         self.parser.add_argument("--network", type=str, default="unet")
         self.parser.add_argument("--nStacks", type=int, default=1)
         self.parser.add_argument("--depth", type=int, default=3)
-        self.parser.add_argument("--nFeat", type=int, default=64)  # 96
+        self.parser.add_argument("--nFeat", type=int, default=64)
         self.parser.add_argument(
             "--normlayer", type=check_arg(str, ["bn", "in", "none"]), default="bn"
         )

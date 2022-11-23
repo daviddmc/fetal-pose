@@ -340,9 +340,13 @@ def train_map_fn(data_dict, opts):
         volume, heatmap, loc = random_rot(volume, heatmap, loc)
     if opts.flip:
         volume, heatmap, loc = random_flip(volume, heatmap, loc)
-    if opts.scale:
-        volume[:, :, :, 0] = (
-            uniform(1 - opts.scale, 1 + opts.scale) * volume[:, :, :, 0]
+    # if opts.scale:
+    #    volume[:, :, :, 0] = (
+    #        uniform(1 - opts.scale, 1 + opts.scale) * volume[:, :, :, 0]
+    #    )
+    if opts.scale and opts.norm:
+        volume[:, :, :, 0] = volume[:, :, :, 0] ** uniform(
+            1 - opts.scale, 1 + opts.scale
         )
     return volume, heatmap, loc
 
@@ -361,13 +365,15 @@ def val_map_fn(data_dict, opts):
         volume = zoom(volume, zf, order=1)
         joint_coord = np.around(joint_coord * zf).astype(np.int32)
     if opts.norm:
-        mean = np.mean(volume)
-        std = np.std(volume)
+        percentile_fac = np.percentile(volume[volume > 0], 99)
+        # mean = np.mean(volume)
+        # std = np.std(volume)
     volume, heatmap, loc = crop_trainval(
         volume, joint_coord, opts.crop_size, opts.mag, opts.sigma
     )
     if opts.norm:
-        volume = (volume - mean) / std
+        volume = volume / percentile_fac
+        # volume = (volume - mean) / std
     return volume, heatmap, loc
 
 
@@ -378,14 +384,14 @@ def test_map_fn(data_dict, opts):
         volume = read_nifti(data_dict["filename"])
     joint_coord = data_dict["label"]
     if opts.norm:
-        volume = (volume - np.mean(volume)) / np.std(volume)
+        volume = volume / np.percentile(volume[volume > 0], 99)
+        # volume = (volume - np.mean(volume)) / np.std(volume)
     return (
         crop_test(volume, opts.test_arg),
         joint_coord,
         volume.shape,
         data_dict["foldername"],
     )
-    # return crop_test(volume, opts.test_arg), joint_coord.astype(np.int32), volume.shape, data_dict['foldername']
 
 
 def crop_trainval(volume, joint_coord, crop_size, mag, sigma):
@@ -393,7 +399,6 @@ def crop_trainval(volume, joint_coord, crop_size, mag, sigma):
     crop_size_x, crop_size_y, crop_size_z = crop_size
     # generate random point
     s = volume.shape
-
     if crop_size_x == 0:
         pad_width = [
             (
