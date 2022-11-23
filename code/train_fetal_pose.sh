@@ -1,4 +1,4 @@
-python main.py --name=b8s64bn_rot_scale0.1_zoom_0.5_1.5_adamwr1_flip_unet_all_400ep_new \
+python main.py --name=b8s64bn_rot_scale0.2_zoom_0.5_1.5_adamwr1_flip_unet_all_400ep_new \
                --run=train \
                --gpu_id=6 \
                --lr=1e-3 \
@@ -17,4 +17,5 @@ python main.py --name=b8s64bn_rot_scale0.1_zoom_0.5_1.5_adamwr1_flip_unet_all_40
                --crop_size=64,64,64 \
                --epochs=400 \
                --lr_decay_ep=401 \
-               --norm
+               --norm \
+               --train_all
