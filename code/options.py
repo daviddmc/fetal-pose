@@ -60,7 +60,6 @@ class Options:
         self.parser.add_argument("--lr_decay_gamma", type=float, default=0.1)
         self.parser.add_argument("--lr_decay_method", type=str, default="exp")
         self.parser.add_argument("--optimizer", type=str, default="adam")
-        self.parser.add_argument("--random_seed", type=int)
         self.parser.add_argument("--k_init", type=str, default="glorot_uniform")
         self.parser.add_argument("--locLambda", type=float, default=0.0)
         self.parser.add_argument("--locT", type=float, default=0.0)
@@ -169,10 +168,6 @@ class Options:
 
         if is_predict:
             return self.opt
-
-        # random seed
-        if self.opt.random_seed is not None:
-            set_random_seed(["py", "np", "tf"], self.opt.random_seed)
 
         expr_dir = os.path.join(self.opt.output_path, self.opt.name)
         if self.opt.run == "test":

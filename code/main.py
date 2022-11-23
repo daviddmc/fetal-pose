@@ -159,7 +159,6 @@ def test_fun(dataset, opts):
         inputs = tf.placeholder(tf.float32, shape=[None, None, None, None, 1])
 
         # network
-        # outputs, _ = get_network(inputs, opts)
         outputs, _, _, _ = get_network(inputs, None, opts)
 
         # save and load

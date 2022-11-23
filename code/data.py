@@ -59,7 +59,7 @@ data_train = [
     "111017S",
     "121517b",
 ]
-# data_train = ['022618', '031615', '031616', '032318a', '040218','040716', '043015', '061217', '102617']
+
 data_val = [
     "013018L",
     "013118L",
@@ -228,7 +228,7 @@ class Dataset:
                     train_dict.append(d)
                 elif folder_basename in data_val:
                     val_dict.append(d)
-                else:
+                elif folder_basename in data_test:
                     test_dict.append(d)
         self.dataset_dict = {"train": train_dict, "val": val_dict, "test": test_dict}
 
