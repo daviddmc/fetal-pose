@@ -6,6 +6,14 @@ This repo is the accumulation of the following works:
 
 \[2\] 3D Fetal Pose Estimation with Conditional Generative Adversarial Network ([Springer](https://link.springer.com/chapter/10.1007/978-3-030-60334-2_20))
 
+## Requirements
+
+- python 3.6.7
+- tensorflow 1.12.0
+- pyyaml
+- nibabel
+- scipy
+
 ## Cite Our Work
 
 ```
