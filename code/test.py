@@ -4,35 +4,36 @@ from math import ceil
 from scipy.ndimage import zoom
 import scipy.io as sio
 
+from skimage.feature import peak_local_max
+from pgmpy.models import MarkovModel
+from pgmpy.inference import BeliefPropagation, Mplp
+from pgmpy.factors.discrete import DiscreteFactor
+import pandas as pd
+from math import gamma
+
+from data import data_train, data_test
+
+kp = ['ankle_l', 'ankle_r', 'knee_l', 'knee_r', 'bladder', 'elbow_l', 'elbow_r',
+ 'eye_l', 'eye_r', 'hip_l', 'hip_r', 'shoulder_l', 'shoulder_r', 'wrist_l', 'wrist_r']
+
+#bone = np.array([[9,10], [11, 12], [7, 8], [11, 5], [12, 6], [5, 13], [6, 14], [9, 2], [10, 3], [2, 0], [3, 1], [4, 9], [4, 10] ])
+bone = np.array([[9,10], [11, 12], [7, 8], [11, 5], [12, 6], [5, 13], [6, 14], [9, 2], [10, 3], [2, 0], [3, 1], [4, 10], [7, 11], [4, 11]])
+num_a = 3 #7
+num_b = 3
+num_peak = [num_a, num_a, num_a, num_a, num_b, num_a, num_a, num_b, num_b, num_a, num_a, num_b, num_b, num_a, num_a]
+
 name_dict = {}
+
 
 def reset_dict(): 
     global name_dict 
     name_dict = {}
 
-def save_volume(volume, dn, opts):
-    #if dn == 22618:
-    name_dict[dn] = name_dict.get(dn, 0) + 1
-    p = os.path.join(opts.output_path, opts.name, str(dn) + '_%03d.mat' % name_dict[dn])
-    if os.path.isfile(p):
-        volume += sio.loadmat(p)['heatmap']
-    sio.savemat(p, {'heatmap': volume})
-    #np.save(p, volume)
-    return volume
-
 
 def test_result(outputs, joint_coord, s, dn, opts):
 
     outputs = np.squeeze(outputs)
-    if outputs.shape[-1] > opts.nJoint:
-        #[[11,5],[12,6],[5,13],[6,14],[9,2],[10,3],[2,0],[3,1]]
-        bones = outputs[:, :, :, opts.nJoint:]
-        outputs = outputs[:, :, :, :opts.nJoint]
-        for i, b in enumerate(opts.bone):
-            outputs[:, :, :, b[0]] = outputs[:, :, :, b[0]] * bones[:, :, :, i]
-            outputs[:, :, :, b[1]] = outputs[:, :, :, b[1]] * bones[:, :, :, i]
-    else:
-        outputs = outputs[:, :, :, :opts.nJoint]
+    outputs = outputs[:, :, :, :opts.nJoint]
     if opts.test_arg[1] is not None:
         flip_order = [1, 0, 3, 2, 4, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13]
         outputs = np.flip(outputs, opts.test_arg[1])
@@ -45,25 +46,31 @@ def test_result(outputs, joint_coord, s, dn, opts):
 
     predict_mean_coord = np.zeros_like(joint_coord)* 0.0
     
-    #print('dn')
-    if opts.fac > 1:
-        outputs = zoom(outputs, (opts.fac, opts.fac, opts.fac, 1), order=1)
     pad_width = [(int((ceil(ss/8.0)*8-ss)/2), int(ceil((ceil(ss/8.0)*8-ss)/2))) for ss in s]
     #pad_width = [(int((ceil(ss/16.0)*16-ss)/2), int(ceil((ceil(ss/16.0)*16-ss)/2))) for ss in s]
     sss = outputs.shape
     volume = outputs[pad_width[0][0]:sss[0]-pad_width[0][1], pad_width[1][0]:sss[1]-pad_width[1][1], pad_width[2][0]:sss[2]-pad_width[2][1]]
-    '''save volume'''
-    #volume = save_volume(volume, int(dn), opts)
     
     volume[volume < 0] = 0
     #xv, yv, zv = np.meshgrid(np.arange(1, s[1]+1), np.arange(1, s[0]+1), np.arange(1, s[2]+1))
+    
+    if opts.use_MRF and len(mu) == 0:
+        init_GA()
+        
+    if opts.use_MRF:
+        inds = MRF(volume, joint_coord.shape[-1], GA_dict[data_test[dn]])
     
     for i in range(joint_coord.shape[-1]):
         if joint_coord[2, i] <= 0:
             joint_coord[:, i] = np.nan
             predict_mean_coord[:, i] = np.nan
         else:
-            ind = np.unravel_index(np.argmax(volume[:,:,:,i]), s)
+        
+            if opts.use_MRF:
+                ind = inds[i]
+            else:
+                ind = np.unravel_index(np.argmax(volume[:,:,:,i]), s)
+                
             weights = 0
             x_p = y_p = z_p = 0
             for x in range(ind[1]-1,ind[1]+2):
@@ -83,36 +90,71 @@ def test_result(outputs, joint_coord, s, dn, opts):
 
 
 def save_test_result(res, opts):
-    headers = ['data_id']
-    for prefix in ['predict_', 'label_']:
-        for suffix in ['_x', '_y', '_z']:
-            for j in opts.joint:
-                headers.append(prefix + str(j+1) + suffix)
-    np.savetxt(os.path.join(opts.output_path, opts.name, opts.name + '.csv'), np.vstack(res), 
-        fmt='%.3f', delimiter=',', header=','.join(headers), comments='')
-        
-        
-def first_heatmap_p(joint_coord, shape, opts):
-    shape = np.squeeze(shape)
-    y_range = np.reshape(np.arange(1, 1+shape[0], dtype=np.float32), (-1,1,1,1))
-    x_range = np.reshape(np.arange(1, 1+shape[1], dtype=np.float32), (1,-1,1,1))
-    z_range = np.reshape(np.arange(1, 1+shape[2], dtype=np.float32), (1,1,-1,1))
-    x_label, y_label, z_label = np.reshape(joint_coord, (3,1,1,1,-1))
-    heatmap = opts.mag*np.exp((-1.0/2.0/opts.sigma**2)*((x_range - x_label)**2 + (y_range - y_label)**2 + (z_range - z_label)**2), dtype=np.float32)
-    heatmap = np.expand_dims(heatmap, 0)
-    pad_width = [(int((ceil(s/8.0)*8-s)/2), int(ceil((ceil(s/8.0)*8-s)/2))) for s in shape]
-    heatmap = np.pad(heatmap, [(0,0)] + pad_width + [(0,0)],  'constant') #'constant', 'edge'
-    return heatmap
-    
-    
-def get_heatmap_p(heatmap, opts):
-    heatmap = np.squeeze(heatmap)
-    s = heatmap[:,:,:,0].shape
-    xv, yv, zv = np.meshgrid(np.arange(1, 1+s[1]), np.arange(1, 1+s[0]), np.arange(1, 1+s[2]))
+    if res:
+        headers = ['data_id']
+        for prefix in ['predict_', 'label_']:
+            for suffix in ['_x', '_y', '_z']:
+                for j in opts.joint:
+                    headers.append(prefix + str(j+1) + suffix)
+        np.savetxt(os.path.join(opts.output_path, opts.name, opts.name + '.csv'), np.vstack(res), 
+            fmt='%.3f', delimiter=',', header=','.join(headers), comments='')
+            
+            
+            
+mu = []
+sigma = []
+GA_dict = {}
+beta = 2
 
-    for i in range(heatmap.shape[-1]):
-        ind = np.unravel_index(np.argmax(heatmap[:,:,:,i]), s)
-        heatmap[:,:,:,i] = opts.mag * np.exp((-1.0/2/opts.sigma**2)*((xv - ind[1] - 1)**2 + (yv - ind[0] - 1)**2 + (zv - ind[2] - 1)**2),dtype=np.float32)
+def init_GA():
 
-    return np.expand_dims(heatmap, 0)
+    info_ga = pd.read_excel('../info_saved.xlsx')[['fnames', 'W', 'D']]
+    for index, row in info_ga.iterrows():
+        GA_dict[str(row['fnames']).zfill(6) if type(row['fnames']) is int else row['fnames']] = (row['W'] if row['W'] else 32) + row['D'] / 7.0
+    res = []
+    for ds in data_train:
+        ga = GA_dict[ds]
+        joint_coord = sio.loadmat(os.path.join('../label', ds + '.mat'))['joint_coord']
+        bone_len = joint_coord[:, :, bone[:, 0]] - joint_coord[:, :, bone[:, 1]];
+        bone_len = np.sqrt(np.sum(bone_len**2, 1));
+        res.append(bone_len[:, :] * L_GA(32) / L_GA(ga));
+    res =np.concatenate(res)
+    for i in range(bone.shape[0]):
+        tmp = res[:, i];
+        tmp = tmp[tmp < 51];
+        mu.append(np.mean(tmp));
+        sigma.append(np.sqrt(np.var(tmp) * gamma(1/beta) / gamma(3/beta)));
+         
+def L_GA(ga):
+    return ga * 0.67924 + 0.86298
+
+def MRF(volume, J, ga):
     
+    MM = MarkovModel()
+    MM.add_nodes_from(kp)
+    locs = []
+    locs_value = []
+    for i in range(J):
+        locs.append(peak_local_max(volume[:,:,:,i], min_distance=3, exclude_border=True, indices=True, num_peaks=num_peak[i]))
+        locs_value.append(volume[locs[i][:, 0], locs[i][:, 1], locs[i][:, 2], i]- np.amin(volume[:,:,:,i])) 
+        factor = DiscreteFactor([kp[i]], cardinality=[locs[i].shape[0]], values=locs_value[i])
+        MM.add_factors(factor)
+    fac = L_GA(32) / L_GA(ga)
+    for i, b in enumerate(bone):
+        MM.add_edge(kp[b[0]], kp[b[1]])
+        dr = np.sqrt(np.sum((locs[b[0]].reshape((-1, 1, 3)) - locs[b[1]].reshape((1, -1, 3))) ** 2, 2))
+        edgePot = np.exp(- ((dr * fac - mu[i]) / sigma[i]) ** beta);
+        edgePot[dr > 40] = 0
+        factor = DiscreteFactor([kp[b[0]], kp[b[1]]], cardinality=[locs[b[0]].shape[0], locs[b[1]].shape[0]], values=edgePot)
+        MM.add_factors(factor)
+    # inference
+    #assert MM.check_model()
+    inference_method = BeliefPropagation(MM)
+    #inference_method = Mplp(MM)
+    config_max = inference_method.map_query()
+    
+    inds = []
+    for i in range(J):
+        inds.append(locs[i][config_max[kp[i]], :])
+        #inds.append(locs[i][np.nonzero(locs_value[i] == config_max[kp[i]])[0][0], :])
+    return inds
