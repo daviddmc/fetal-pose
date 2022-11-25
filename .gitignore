@@ -1,6 +1,7 @@
 .vscode/
 Chiari_2022_10_31/
 code/run.sh
+code/mrf.py
 code/ChiariCases_EPIs/
 code/EPI_20timePts_clinical_20181022/
 code/epi_s4_k2/
