@@ -18,4 +18,14 @@ python main.py --name=fetal_pose \
                --epochs=400 \
                --lr_decay_ep=401 \
                --norm \
-               --train_all
+               --train_all \
+               --gan_coef=0.5 \
+               --gan_coefdt=0.5 \
+               --gan_coefdf=0.5 \
+               --sigma=0 \
+               --varLambda=9e-4 \
+               --correct \
+               --network_d=disc \
+               --minsig=2
+               # --use_continue='fetal_pose' \
+               # --epoch_continue=-1 
