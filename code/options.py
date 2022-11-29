@@ -191,3 +191,56 @@ class Options:
         print_args(self.opt)
 
         return self.opt
+
+
+class OptionsDcm2Nii:
+    def __init__(self):
+        self.parser = argparse.ArgumentParser(
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        )
+        self.initialized = False
+
+    def initialize(self):
+        # path
+        self.parser.add_argument(
+            "--rawdata_path", required=True, type=str, help="input raw data path"
+        )
+        self.parser.add_argument(
+            "--output_path", required=True, type=str, help="output data path"
+        )
+        self.initialized = True
+
+    def parse(self):
+        if not self.initialized:
+            self.initialize()
+        self.opt = self.parser.parse_args()
+        return self.opt
+
+
+class OptionsSplitNii:
+    def __init__(self):
+        self.parser = argparse.ArgumentParser(
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        )
+        self.initialized = False
+
+    def initialize(self):
+        # path
+        self.parser.add_argument(
+            "--rawdata_path", required=True, type=str, help="input raw data path"
+        )
+        self.parser.add_argument(
+            "--output_path", required=True, type=str, help="output data path"
+        )
+        self.parser.add_argument(
+            "--starts_with_odd",
+            action="store_true",
+            help="use the odd slices as the first stack (zero-based indexing)",
+        )
+        self.initialized = True
+
+    def parse(self):
+        if not self.initialized:
+            self.initialize()
+        self.opt = self.parser.parse_args()
+        return self.opt
