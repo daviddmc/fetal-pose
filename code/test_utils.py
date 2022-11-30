@@ -49,32 +49,30 @@ def test_result(outputs, joint_coord, s, dn, opts):
             else:
                 ind = np.unravel_index(np.argmax(volume[:, :, :, i]), s)
 
-            weights = 0
-            x_p = y_p = z_p = 0
-            for x in range(ind[1] - 1, ind[1] + 2):
-                for y in range(ind[0] - 1, ind[0] + 2):
-                    for z in range(ind[2] - 1, ind[2] + 2):
-                        if (
-                            0 <= x < volume.shape[1]
-                            and 0 <= y < volume.shape[0]
-                            and 0 <= z < volume.shape[2]
-                        ):
-                            weights += volume[y, x, z, i]
-                            x_p += x * volume[y, x, z, i]
-                            y_p += y * volume[y, x, z, i]
-                            z_p += z * volume[y, x, z, i]
-            # weights = np.exp( (-1.0/8.0)*((xv - ind[1]- 1)**2 + (yv - ind[0] - 1)**2 + (zv - ind[2] - 1)**2) ) * volume[:,:,:,i]
-            predict_mean_coord[0, i] = (
-                x_p / weights + 1
-            )  # np.average(xv, weights = weights)
-            predict_mean_coord[1, i] = (
-                y_p / weights + 1
-            )  # np.average(yv, weights = weights)
-            predict_mean_coord[2, i] = (
-                z_p / weights + 1
-            )  # np.average(zv, weights = weights)
+            x_avg, y_avg, z_avg = average_coord(volume[:, :, :, i], ind)
+            predict_mean_coord[0, i] = x_avg
+            predict_mean_coord[1, i] = y_avg
+            predict_mean_coord[2, i] = z_avg
 
     return np.hstack((dn, predict_mean_coord.ravel(), joint_coord.ravel()))
+
+
+def average_coord(volume, ind):
+    weights = 0
+    x_p = y_p = z_p = 0
+    for x in range(ind[1] - 1, ind[1] + 2):
+        for y in range(ind[0] - 1, ind[0] + 2):
+            for z in range(ind[2] - 1, ind[2] + 2):
+                if (
+                    0 <= x < volume.shape[1]
+                    and 0 <= y < volume.shape[0]
+                    and 0 <= z < volume.shape[2]
+                ):
+                    weights += volume[y, x, z]
+                    x_p += x * volume[y, x, z]
+                    y_p += y * volume[y, x, z]
+                    z_p += z * volume[y, x, z]
+    return x_p / weights + 1, y_p / weights + 1, z_p / weights + 1
 
 
 def save_test_result(res, opts):
