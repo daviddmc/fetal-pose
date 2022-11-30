@@ -2,7 +2,7 @@ from options import Options
 from data import Dataset
 from model import get_network, get_heatmap, downsample
 from losses import mse_loss, gan_loss
-from test import test_result, save_test_result, reset_dict
+from test_utils import test_result, save_test_result
 import os
 import time
 from optimizer import Optimizer
@@ -190,7 +190,6 @@ def test_fun(dataset, opts):
                 except tf.errors.OutOfRangeError:
                     break
             save_test_result(res, opts)
-            reset_dict()
         tf.reset_default_graph()
         print("test end, elapsed time: ", time.time() - start)
 
