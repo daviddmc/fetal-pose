@@ -24,7 +24,10 @@ class Options:
             "--record_path", default="../record.mat", type=str, help="record path"
         )
         self.parser.add_argument(
-            "--output_path", default="../results/", type=str, help="output path"
+            "--output_path",
+            default="../results/",
+            type=str,
+            help="path to save experiment results",
         )
         self.parser.add_argument(
             "--name", type=str, default="", help="name of experiment"
@@ -243,4 +246,80 @@ class OptionsSplitNii:
         if not self.initialized:
             self.initialize()
         self.opt = self.parser.parse_args()
+        return self.opt
+
+
+class OptionsInference:
+    def __init__(self):
+        self.parser = argparse.ArgumentParser(
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        )
+        self.initialized = False
+
+    def initialize(self):
+
+        # path
+        self.parser.add_argument(
+            "--rawdata_path", required=True, type=str, help="input data folder"
+        )
+        self.parser.add_argument(
+            "--output_label", required=True, type=str, help="output label file (.mat)"
+        )
+        self.parser.add_argument(
+            "--output_path",
+            default="../results/",
+            type=str,
+            help="path to save experiment results",
+        )
+        self.parser.add_argument(
+            "--name", type=str, required=True, help="name of experiment"
+        )
+
+        # GPU
+        self.parser.add_argument("--gpu_id", type=str, default="0")
+        self.parser.add_argument("--ngpu", type=int, default=1)
+
+        # run
+        self.parser.add_argument("--use_MRF", action="store_true", default=False)
+
+        self.initialized = True
+
+    def parse(self):
+        if not self.initialized:
+            self.initialize()
+        self.opt = self.parser.parse_args()
+        # gpu
+        if self.opt.ngpu:
+            self.opt.gpu_id = get_gpu(self.opt.ngpu, 11000)
+        else:
+            self.opt.ngpu = len(self.opt.gpu_id.split(","))
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(self.opt.gpu_id)
+
+        # ep continue
+        self.opt.epoch_continue = max(
+            [
+                int("".join(filter(str.isdigit, x)))
+                for x in os.listdir(os.path.join(self.opt.output_path, self.opt.name))
+                if x.endswith(".ckpt.meta")
+            ]
+        )
+
+        expr_dir = os.path.join(self.opt.output_path, self.opt.name)
+
+        self.opt = load_yaml(
+            os.path.join(expr_dir, "opt.yaml"),
+            self.opt,
+            key_to_drop=[
+                "run",
+                "use_MRF",
+                "epochs",
+                "epoch_continue",
+                "rawdata_path",
+                "name",
+                "output_path",
+            ],
+        )
+
+        print_args(self.opt)
+
         return self.opt
