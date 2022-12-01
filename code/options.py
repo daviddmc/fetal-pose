@@ -280,7 +280,14 @@ class OptionsInference:
         self.parser.add_argument("--ngpu", type=int, default=1)
 
         # run
-        self.parser.add_argument("--use_MRF", action="store_true", default=False)
+        self.parser.add_argument(
+            "--use_MRF", action="store_true", help="use MRF postprocessing"
+        )
+        self.parser.add_argument(
+            "--mm",
+            action="store_true",
+            help="output coordiantes in millimeters (default: pixel)",
+        )
 
         self.initialized = True
 

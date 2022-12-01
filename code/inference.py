@@ -36,6 +36,7 @@ if __name__ == "__main__":
             if not (f.endswith(".nii") or f.endswith(".nii.gz")):
                 continue
             nii = nib.load(os.path.join(opts.rawdata_path, f))
+            resolution = nii.header["pixdim"][1:4] if opts.mm else [1, 1, 1]
             img = nii.get_fdata()
             if opts.norm:
                 img = img / np.percentile(img[img > 0], 99)
@@ -58,9 +59,9 @@ if __name__ == "__main__":
             for j in range(len(c)):
                 ind = np.array(np.unravel_index(c[j], s))
                 x, y, z = average_coord(output_val[0, :, :, :, j], ind)
-                joint_coord[0, j] = x
-                joint_coord[1, j] = y
-                joint_coord[2, j] = z
+                joint_coord[0, j] = x * resolution[1]
+                joint_coord[1, j] = y * resolution[0]
+                joint_coord[2, j] = z * resolution[2]
 
             joint_coords.append(joint_coord)
 
