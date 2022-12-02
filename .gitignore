@@ -2,6 +2,7 @@
 code/STRESS_epi_s4_k2/
 code/inference_scripts/
 code/run.sh
+code/inference.sh
 code_old/
 code_torch/
 label/
