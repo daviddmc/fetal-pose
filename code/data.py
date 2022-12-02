@@ -7,92 +7,7 @@ from random import shuffle, randint, choice, uniform, random
 from math import ceil
 from dataset import get_dataset_from_indexable
 from scipy.ndimage import zoom
-
-data_train = [
-    "010918L",
-    "010918S",
-    "013018S",
-    "013118S",
-    "021218S",
-    "022318L",
-    "022318S",
-    "031317L",
-    "031317T",
-    "031615",
-    "031616",
-    "032217",
-    "032318b",
-    "032318c",
-    "032318d",
-    "032818",
-    "040218",
-    "040417",
-    "041017",
-    "041318L",
-    "043015",
-    "050318L",
-    "051718L",
-    "051718S",
-    "051817",
-    "052218L",
-    "052218S",
-    "052418L",
-    "053017",
-    "061217",
-    "062817S",
-    "071717S",
-    "072017S",
-    "080217",
-    "082117S",
-    "082517L",
-    "082917b",
-    "091917S",
-    "092117L",
-    "092117S",
-    "092817L",
-    "100317L",
-    "102617",
-    "103017a",
-    "103017b",
-    "110217L",
-    "111017L",
-    "111017S",
-    "121517b",
-]
-
-data_val = [
-    "013018L",
-    "013118L",
-    "032318a",
-    "040716",
-    "052418S",
-    "053117L",
-    "062117",
-    "062817L",
-    "071218",
-    "071717L",
-    "082117L",
-    "083017S",
-    "101317",
-    "121517a",
-]
-
-data_test = [
-    "021218L",
-    "022618",
-    "041818",
-    "052516",
-    "053117S",
-    "072017L",
-    "082917a",
-    "083017L",
-    "083115",
-    "090517L",
-    "091917L",
-    "100317S",
-    "110214",
-    "120717",
-]
+from utils import load_yaml
 
 train_data_list_all = []
 val_data_list_all = []
@@ -181,24 +96,32 @@ def read_nifti(nii_filename):
 
 class Dataset:
     def __init__(self, opts):
-        record = sio.loadmat(opts.record_path)["record"][0]
-        rec_dict = {}
-        for name, n in zip(record["name"], record["n"]):
-            rec_dict[name[0]] = n
         train_dict = []
         val_dict = []
         test_dict = []
 
+        data_partition = load_yaml(opts.partition_path)
+
+        self.data_train = data_partition["data_train"]
+        self.data_val = data_partition["data_val"]
+        self.data_test = data_partition["data_test"]
+
         if opts.train_all:
-            data_train.extend(data_val)
-            data_train.extend(data_test)
+            self.data_train.extend(self.data_val)
+            self.data_train.extend(self.data_test)
+
+        print(len(self.data_train), len(self.data_val), len(self.data_test))
 
         for folder in [
             os.path.join(opts.rawdata_path, f)
             for f in sorted(os.listdir(opts.rawdata_path))
         ]:
             folder_basename = os.path.basename(folder)
-            if folder_basename in rec_dict:
+            if (
+                (folder_basename in self.data_train)
+                or (folder_basename in self.data_val)
+                or (folder_basename in self.data_test)
+            ):
                 # get joint coord label
                 label_filename = os.path.join(opts.label_path, folder_basename + ".mat")
 
@@ -223,13 +146,12 @@ class Dataset:
                     "foldername": folder_basename,
                     "filenames": niinames,
                     "labels": joint_coord,
-                    "n": rec_dict[folder_basename],
                 }
-                if folder_basename in data_train:
+                if folder_basename in self.data_train:
                     train_dict.append(d)
-                elif folder_basename in data_val:
+                elif folder_basename in self.data_val:
                     val_dict.append(d)
-                elif folder_basename in data_test:
+                elif folder_basename in self.data_test:
                     test_dict.append(d)
         self.dataset_dict = {"train": train_dict, "val": val_dict, "test": test_dict}
 
@@ -237,11 +159,7 @@ class Dataset:
         datasets = self.dataset_dict[stage]
         data_list = []
         for dn, dataset in enumerate(datasets):
-            n = np.nonzero(dataset["n"])[0]
-            if stage == "train":
-                if n.size < 10:
-                    n = n.repeat(int(np.ceil(10 / n.size)))
-            for i in n:
+            for i in range(len(dataset["filenames"])):
                 d = {
                     "filename": dataset["filenames"][i],
                     "label": dataset["labels"][i],
@@ -276,14 +194,13 @@ class Dataset:
             global train_data_list
             train_data_list_all = data_list
             print("# of train data: %d" % len(train_data_list_all))
-            train_data_list = train_data_list_all[: (40 * len(data_train))]
-            # train_data_list = train_data_list_all
+            train_data_list = train_data_list_all[: (40 * len(self.data_train))]
         elif stage == "val":
             global val_data_list_all
             global val_data_list
             val_data_list_all = data_list
             print("# of val data: %d" % len(val_data_list_all))
-            val_data_list = val_data_list_all[: (20 * len(data_val))]
+            val_data_list = val_data_list_all[: (20 * len(self.data_val))]
         else:
             global test_data_list_all
             global test_data_list
@@ -305,8 +222,6 @@ class Dataset:
         else:
             f = lambda i: test_map_fn(test_data_list[i], opts)
             L = len(test_data_list)
-        # map_fn = getattr(sys.modules[__name__], stage + '_map_fn')
-        # f = lambda i: map_fn(data_list[i], opts)
         return get_dataset_from_indexable(f, dtype, shape, L, batch_size, is_shuffle)
 
     def get_dataset(self, opts):

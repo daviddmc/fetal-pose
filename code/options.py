@@ -21,7 +21,10 @@ class Options:
             "--label_path", default="../label/", type=str, help="label path"
         )
         self.parser.add_argument(
-            "--record_path", default="../record.mat", type=str, help="record path"
+            "--partition_path",
+            default="data_partition.yml",
+            type=str,
+            help="data partition",
         )
         self.parser.add_argument(
             "--output_path",

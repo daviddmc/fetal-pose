@@ -7,7 +7,12 @@ from pgmpy.inference import BeliefPropagation
 from pgmpy.factors.discrete import DiscreteFactor
 import pandas as pd
 from math import gamma
-from data import data_train, data_test
+from utils import load_yaml
+
+data_partition = load_yaml("data_partition.yml")
+data_train = data_partition["data_train"]
+data_test = data_partition["data_test"]
+data_val = data_partition["data_val"]
 
 kp = [
     "ankle_l",
