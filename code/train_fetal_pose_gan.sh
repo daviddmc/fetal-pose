@@ -1,6 +1,6 @@
-python main.py --name=fetal_pose \
+python main.py --name=fetal_pose_gan \
                --run=train \
-               --gpu_id=6 \
+               --gpu_id=0 \
                --lr=1e-3 \
                --lr_decay_gamma=0.0 \
                --lr_decay_method=cos_restart \
