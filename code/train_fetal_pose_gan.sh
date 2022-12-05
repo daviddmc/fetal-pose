@@ -18,7 +18,6 @@ python main.py --name=fetal_pose_gan \
                --epochs=400 \
                --lr_decay_ep=401 \
                --norm \
-               --train_all \
                --gan_coef=0.5 \
                --gan_coefdt=0.5 \
                --gan_coefdf=0.5 \
@@ -26,6 +25,7 @@ python main.py --name=fetal_pose_gan \
                --varLambda=9e-4 \
                --correct \
                --network_d=disc \
-               --minsig=2
+               --minsig=2 \
+               --train_all
                # --use_continue='fetal_pose' \
                # --epoch_continue=-1 
