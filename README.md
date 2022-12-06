@@ -45,7 +45,7 @@ python main.py --name=<model-name> \
                --network=unet \
                --crop_size=64,64,64 \
                --epochs=400 \
-               --lr_decay_ep=401 \
+               --lr_decay_ep=13 \
                --norm \
                --train_all
 ```
@@ -71,7 +71,7 @@ python main.py --name=<model-name> \
                --network=unet \
                --crop_size=64,64,64 \
                --epochs=400 \
-               --lr_decay_ep=401 \
+               --lr_decay_ep=13 \
                --norm \
                --gan_coef=0.5 \
                --gan_coefdt=0.5 \

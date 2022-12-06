@@ -16,7 +16,7 @@ python main.py --name=fetal_pose_gan \
                --network=unet \
                --crop_size=64,64,64 \
                --epochs=400 \
-               --lr_decay_ep=401 \
+               --lr_decay_ep=13 \
                --norm \
                --gan_coef=0.5 \
                --gan_coefdt=0.5 \

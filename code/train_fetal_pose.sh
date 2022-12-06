@@ -16,6 +16,6 @@ python main.py --name=fetal_pose \
                --network=unet \
                --crop_size=64,64,64 \
                --epochs=400 \
-               --lr_decay_ep=401 \
+               --lr_decay_ep=13 \
                --norm \
                --train_all
