@@ -21,11 +21,15 @@ def _mosaic_dcm_to_nii(dcm):
     acqmatsize = (
         dcm.AcquisitionMatrix
     )  # AcquisitionMatrix: [frequency rows, frequency columns, phase rows, phase columns]
+    #print(acqmatsize)
+    size = max(acqmatsize)
+    for s in acqmatsize:
+        assert s == size or s == 0
     img = _demosaic(
         img,
-        acqmatsize[0],
-        acqmatsize[0],
-        (dcm.Rows * dcm.Columns) // (acqmatsize[0] * acqmatsize[0]),
+        size,
+        size,
+        (dcm.Rows * dcm.Columns) // (size * size),
     )
     resolution = [
         float(dcm.PixelSpacing[0]),
