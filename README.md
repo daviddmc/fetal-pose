@@ -22,6 +22,8 @@ This repo provides deep learning models for estimating 3D fetal pose from volume
 
 #### dataset
 
+##### image data
+
 All image data should be put in a `data_folder` where each sub-folder should contain a series of 3D MRI (each frame is stored in a seperate `.nii` file).
 
 ```
@@ -41,6 +43,8 @@ data_folder
 ├── ...
 ```
 
+##### keypoint label
+
 The labels are the 3D coordinates (x, y, z in unit of voxel) of each keypoint in each frame. All labels should be put in a `label_folder`.
 The labels of a subject should be in a `.mat` file with the *same name* (e.g., the labels of `subject1` should be stored in `subject1.mat`). 
 Each `.mat` file has an array `joint_coord` with shape of `(T, 3, K)`, 
@@ -54,6 +58,28 @@ label_folder
 ├── subject2.mat
 ├── ...
 ```
+
+*Note*: The coordinates are 1-indexed, i.e., the coordiantes of the first voxel in the volume is (1, 1, 1). 
+Moreover the (x, y, z) coordinates are different from the (i,j,k) index of the volume. 
+`v(y,x,z)` would retrieve the corresponding intensity of the keypoint in MATLAB. See the following example.
+
+```
+% read data
+v = niftiread('data_folder/subject1/subject1_0000.nii.gz');
+% read label
+s = load('label_folder/subject1.mat');
+joint_coord = s.joint_coord;
+% get the coordinates of the 9-th keypoint of the first frame
+x = joint_coord(1, 1, 9);
+y = joint_coord(1, 2, 9);
+z = joint_coord(1, 3, 9);
+% this is the intensity of the keypoint, note that x and y are swapped
+v(y, x, z)
+```
+
+##### data split
+
+To split the dataset into training, testing and validation data, you need to put the corresponding subject names in `code/data_partition.yml`.
 
 See `data.py` and `data_partition.yml` for more details.
 
