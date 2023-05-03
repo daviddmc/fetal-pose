@@ -16,6 +16,8 @@ This repo provides deep learning models for estimating 3D fetal pose from volume
 - pydicom
 - scipy
 
+You make also setup an environment using `conda env create -f environment.yml`.
+
 ## Usage
 
 ### training
