@@ -190,6 +190,9 @@ output keypoints id
 14: wrist_r
 ```
 
+We also provide the weights of a trained model, which can be download from this [link](https://zenodo.org/record/7892985#.ZFKLzHbMK5c).
+Extract the model to `results/fetal_pose` and run the inference with `--name=fetal_pose`.
+
 ## Cite Our Work
 
 ```
