@@ -41,8 +41,8 @@ data_folder
 ├── ...
 ```
 
-The labels are the 3D coordinates (x, y, z in unit of voxel) of each keypoint in each frame. 
-The corresponding keypoint labels should be in a `.mat` file with the *same name* (e.g., the labels of `subject1` should be stored in `subject1.mat`). 
+The labels are the 3D coordinates (x, y, z in unit of voxel) of each keypoint in each frame. All labels should be put in a `label_folder`.
+The labels of a subject should be in a `.mat` file with the *same name* (e.g., the labels of `subject1` should be stored in `subject1.mat`). 
 Each `.mat` file has an array `joint_coord` with shape of `(T, 3, K)`, 
 where `T` is the number of frames, 
 `3` is the three dimensions (x, y, z), 
