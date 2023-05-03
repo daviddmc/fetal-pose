@@ -22,12 +22,47 @@ This repo provides deep learning models for estimating 3D fetal pose from volume
 
 #### dataset
 
-See `data.py` and `data_partition.yml` for how to build the training dataset. Each data folder should contain a series of 3D MRI (each frame is stored in a seperate `.nii` file). The corresponding keypoint labels should be in a `.mat` file with the same name. The keypoint labels should be an array with shape of `(T, 3, 15)` where `T` is the number of frames.
+All image data should be put in a `data_folder` where each sub-folder should contain a series of 3D MRI (each frame is stored in a seperate `.nii` file).
+
+```
+data_folder
+├── subject1
+|   ├── subject1_0000.nii.gz
+|   ├── subject1_0001.nii.gz
+|   ├── subject1_0002.nii.gz
+|   ├── ...
+|
+├── subject2
+|   ├── subject2_0000.nii.gz
+|   ├── subject2_0001.nii.gz
+|   ├── subject2_0002.nii.gz
+|   ├── ...
+|
+├── ...
+```
+
+The labels are the 3D coordinates (x, y, z) of each keypoint in each frame. 
+The corresponding keypoint labels should be in a `.mat` file with the *same name* (e.g., the labels of `subject1` should be stored in `subject1.mat`). 
+Each `.mat` file has an array with shape of `(T, 3, K)`, 
+where `T` is the number of frames, 
+`3` is the three dimensions (x, y, z), 
+and `K` is the number of different keypoints, which is 15 in our work.
+
+```
+label_folder
+├── subject1.mat
+├── subject2.mat
+├── ...
+```
+
+See `data.py` and `data_partition.yml` for more details.
 
 #### train Unet model
 
 ```
 python main.py --name=<model-name> \
+               --rawdata_path=<path-to-data-folder> \
+               --label_path=<path-to-label-folder> \
                --run=train \
                --gpu_id=0 \
                --lr=1e-3 \
@@ -54,6 +89,8 @@ python main.py --name=<model-name> \
 
 ```
 python main.py --name=<model-name> \
+               --rawdata_path=<path-to-data-folder> \
+               --label_path=<path-to-label-folder> \
                --run=train \
                --gpu_id=0 \
                --lr=1e-3 \
@@ -105,6 +142,26 @@ python inference.py --name=<model-name> \
                     --rawdata_path=<input-folder> \
                     --output_label=<output-mat-file>
 ```
+
+output keypoints id
+```
+ 0: ankle_l
+ 1: ankle_r
+ 2: knee_l
+ 3: knee_r
+ 4: bladder
+ 5: elbow_l
+ 6: elbow_r
+ 7: eye_l
+ 8: eye_r
+ 9: hip_l
+10: hip_r
+11: shoulder_l
+12: shoulder_r
+13: wrist_l
+14: wrist_r
+```
+
 ## Cite Our Work
 
 ```
