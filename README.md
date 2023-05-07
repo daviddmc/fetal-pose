@@ -79,6 +79,26 @@ z = joint_coord(1, 3, 9);
 v(y, x, z)
 ```
 
+label keypoints id
+```
+% matlab is 1-indexed
+ 1: ankle (left)
+ 2: ankle (right)
+ 3: knee (left)
+ 4: knee (right)
+ 5: bladder
+ 6: elbow (left)
+ 7: elbow (right)
+ 8: eye (left)
+ 9: eye (right)
+10: hip (left)
+11: hip (right)
+12: shoulder (left)
+13: shoulder (right)
+14: wrist (left)
+15: wrist (right)
+```
+
 ##### data split
 
 To split the dataset into training, testing and validation data, you need to put the corresponding subject names in `code/data_partition.yml`.
@@ -169,25 +189,6 @@ python inference.py --name=<model-name> \
                     --gpu_id=0 \
                     --rawdata_path=<input-folder> \
                     --output_label=<output-mat-file>
-```
-
-output keypoints id
-```
- 0: ankle_l
- 1: ankle_r
- 2: knee_l
- 3: knee_r
- 4: bladder
- 5: elbow_l
- 6: elbow_r
- 7: eye_l
- 8: eye_r
- 9: hip_l
-10: hip_r
-11: shoulder_l
-12: shoulder_r
-13: wrist_l
-14: wrist_r
 ```
 
 We also provide the weights of a trained model, which can be download from this [link](https://zenodo.org/record/7892985#.ZFKLzHbMK5c).
