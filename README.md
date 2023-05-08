@@ -191,6 +191,8 @@ python inference.py --name=<model-name> \
                     --output_label=<output-mat-file>
 ```
 
+#### pretrained model
+
 We also provide the weights of a trained model, which can be download from this [link](https://zenodo.org/record/7892985#.ZFKLzHbMK5c).
 Extract the model to `results/fetal_pose` and run the inference with `--name=fetal_pose`.
 

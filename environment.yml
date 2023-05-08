@@ -85,7 +85,6 @@ dependencies:
   - libprotobuf=3.6.1=hd408876_0
   - libsodium=1.0.16=h1bed415_0
   - libstdcxx-ng=8.2.0=hdf63c60_1
-  - libtiff=4.0.10=h648cc4a_1001
   - libuuid=2.32.1=h14c3975_1000
   - libwebp=1.0.2=h576950b_1
   - libxcb=1.13=h1bed415_1

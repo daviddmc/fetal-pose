@@ -38,7 +38,7 @@ class Options:
 
         # GPU
         self.parser.add_argument("--gpu_id", type=str, default="0")
-        self.parser.add_argument("--ngpu", type=int, default=1)
+        # self.parser.add_argument("--ngpu", type=int, default=1)
 
         # run
         self.parser.add_argument(
@@ -140,10 +140,10 @@ class Options:
             self.initialize()
         self.opt = self.parser.parse_args()
         # gpu
-        if self.opt.ngpu:
-            self.opt.gpu_id = get_gpu(self.opt.ngpu, 11000)
-        else:
-            self.opt.ngpu = len(self.opt.gpu_id.split(","))
+        #if self.opt.ngpu:
+        #    self.opt.gpu_id = get_gpu(self.opt.ngpu, 11000)
+        #else:
+        self.opt.ngpu = len(self.opt.gpu_id.split(","))
         os.environ["CUDA_VISIBLE_DEVICES"] = str(self.opt.gpu_id)
         # heatmap zoom
         self.opt.fac = 2 if self.opt.network == "simple" else 1
@@ -280,7 +280,7 @@ class OptionsInference:
 
         # GPU
         self.parser.add_argument("--gpu_id", type=str, default="0")
-        self.parser.add_argument("--ngpu", type=int, default=1)
+        # self.parser.add_argument("--ngpu", type=int, default=1)
 
         # run
         self.parser.add_argument(
@@ -299,10 +299,10 @@ class OptionsInference:
             self.initialize()
         self.opt = self.parser.parse_args()
         # gpu
-        if self.opt.ngpu:
-            self.opt.gpu_id = get_gpu(self.opt.ngpu, 11000)
-        else:
-            self.opt.ngpu = len(self.opt.gpu_id.split(","))
+        # if self.opt.ngpu:
+        #     self.opt.gpu_id = get_gpu(self.opt.ngpu, 11000)
+        # else:
+        self.opt.ngpu = len(self.opt.gpu_id.split(","))
         os.environ["CUDA_VISIBLE_DEVICES"] = str(self.opt.gpu_id)
 
         # ep continue
